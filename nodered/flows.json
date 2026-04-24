@@ -1,0 +1,274 @@
+[
+    {
+        "id": "30bc97d7ce2367b0",
+        "type": "tab",
+        "label": "Desafio 2",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "7afe587f74ef6168",
+        "type": "mqtt in",
+        "z": "30bc97d7ce2367b0",
+        "name": "iiot/desafio2",
+        "topic": "iiot/desafio2",
+        "qos": "0",
+        "datatype": "auto-detect",
+        "broker": "broker_iiot",
+        "inputs": 0,
+        "x": 130,
+        "y": 100,
+        "wires": [
+            [
+                "6e82f3a4fd92d495"
+            ]
+        ]
+    },
+    {
+        "id": "6e82f3a4fd92d495",
+        "type": "function",
+        "z": "30bc97d7ce2367b0",
+        "name": "Separar temp e umidade",
+        "func": "var p = msg.payload;\nif (typeof p === 'string') {\n    try { p = JSON.parse(p); } catch(e) { return null; }\n}\n\nvar temp = p.temperature != null ? p.temperature : p.temperatura != null ? p.temperatura : p.temp != null ? p.temp : p.t != null ? p.t : null;\nvar hum  = p.humidity    != null ? p.humidity    : p.umidade    != null ? p.umidade    : p.hum  != null ? p.hum  : p.h != null ? p.h : null;\n\nif (temp === null && hum === null) return null;\n\nflow.set('lastTemp', temp !== null ? parseFloat(temp) : flow.get('lastTemp'));\nflow.set('lastHum',  hum  !== null ? parseFloat(hum)  : flow.get('lastHum'));\n\nvar msgTemp = { payload: temp !== null ? parseFloat(parseFloat(temp).toFixed(1)) : null };\nvar msgHum  = { payload: hum  !== null ? parseFloat(parseFloat(hum).toFixed(1))  : null };\n\nreturn [msgTemp, msgHum];",
+        "outputs": 2,
+        "noerr": 0,
+        "initialize": "flow.set('lastTemp', null);\nflow.set('lastHum', null);\nflow.set('records', []);",
+        "finalize": "",
+        "libs": [],
+        "x": 340,
+        "y": 100,
+        "wires": [
+            [
+                "0fd9cda75dcf214a"
+            ],
+            [
+                "13f2818259691b0e"
+            ]
+        ]
+    },
+    {
+        "id": "0fd9cda75dcf214a",
+        "type": "ui_gauge",
+        "z": "30bc97d7ce2367b0",
+        "name": "Temperatura",
+        "group": "ui_group_sensor",
+        "order": 1,
+        "width": 3,
+        "height": 3,
+        "gtype": "gage",
+        "title": "Temperatura",
+        "label": "°C",
+        "format": "{{value}}",
+        "min": 0,
+        "max": 60,
+        "colors": [
+            "#00b4d8",
+            "#f9c74f",
+            "#f94144"
+        ],
+        "seg1": 30,
+        "seg2": 45,
+        "className": "",
+        "x": 590,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "13f2818259691b0e",
+        "type": "ui_gauge",
+        "z": "30bc97d7ce2367b0",
+        "name": "Umidade",
+        "group": "ui_group_sensor",
+        "order": 2,
+        "width": 3,
+        "height": 3,
+        "gtype": "gage",
+        "title": "Umidade",
+        "label": "%",
+        "format": "{{value}}",
+        "min": 0,
+        "max": 100,
+        "colors": [
+            "#f94144",
+            "#f9c74f",
+            "#00b4d8"
+        ],
+        "seg1": 30,
+        "seg2": 60,
+        "className": "",
+        "x": 590,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "1314a4f94ecd3ae4",
+        "type": "inject",
+        "z": "30bc97d7ce2367b0",
+        "name": "A cada 2s",
+        "props": [
+            {
+                "p": "payload",
+                "v": "",
+                "vt": "date"
+            }
+        ],
+        "repeat": "2",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0,
+        "x": 130,
+        "y": 220,
+        "wires": [
+            [
+                "833820671c5a6ab3"
+            ]
+        ]
+    },
+    {
+        "id": "833820671c5a6ab3",
+        "type": "function",
+        "z": "30bc97d7ce2367b0",
+        "name": "Salvar registro",
+        "func": "var temp = flow.get('lastTemp');\nvar hum  = flow.get('lastHum');\n\nif (temp === null || temp === undefined) {\n    node.status({fill:'yellow', shape:'ring', text:'sem dados ainda'});\n    return null;\n}\n\nvar records = flow.get('records') || [];\nvar now = new Date();\n\nrecords.push({\n    id:          records.length + 1,\n    datetime:    now.toLocaleString('pt-BR'),\n    timestamp:   now.toISOString(),\n    temperature: parseFloat(temp.toFixed(2)),\n    humidity:    hum !== null ? parseFloat(hum.toFixed(2)) : ''\n});\n\nflow.set('records', records);\nnode.status({fill:'green', shape:'dot', text: records.length + ' registros — ' + now.toLocaleTimeString('pt-BR')});\n\nreturn null;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 340,
+        "y": 220,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "e71fed892d321ed2",
+        "type": "ui_template",
+        "z": "30bc97d7ce2367b0",
+        "group": "ui_group_csv",
+        "name": "Botão Download CSV",
+        "order": 1,
+        "width": 6,
+        "height": 1,
+        "format": "<div style=\"display:flex;align-items:center;justify-content:center;height:100%;padding:8px\">\n  <a href=\"/exportar-csv\" target=\"_blank\" style=\"display:inline-block;padding:10px 32px;background:#22c55e;color:#052e16;font-weight:bold;font-size:15px;border-radius:6px;text-decoration:none;letter-spacing:0.3px;\">⬇ Baixar CSV</a>\n</div>",
+        "storeOutMessages": false,
+        "fwdInMessages": false,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 130,
+        "y": 340,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "7c00836f3f6e5b12",
+        "type": "http in",
+        "z": "30bc97d7ce2367b0",
+        "name": "GET /exportar-csv",
+        "url": "/exportar-csv",
+        "method": "get",
+        "upload": false,
+        "x": 130,
+        "y": 420,
+        "wires": [
+            [
+                "34a147403d4ee064"
+            ]
+        ]
+    },
+    {
+        "id": "34a147403d4ee064",
+        "type": "function",
+        "z": "30bc97d7ce2367b0",
+        "name": "Gerar CSV",
+        "func": "var records = flow.get('records') || [];\n\nif (records.length === 0) {\n    msg.payload = 'Nenhum registro salvo ainda.';\n    msg.statusCode = 204;\n    return msg;\n}\n\nvar linhas = ['ID,Data/Hora,Timestamp ISO,Temperatura (C),Umidade (%)'];\nrecords.forEach(function(r) {\n    linhas.push([\n        r.id,\n        '\"' + r.datetime + '\"',\n        '\"' + r.timestamp + '\"',\n        r.temperature,\n        r.humidity\n    ].join(','));\n});\n\nvar ts = new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');\nmsg.payload = linhas.join('\\n');\nmsg.headers = {\n    'Content-Type': 'text/csv; charset=utf-8',\n    'Content-Disposition': 'attachment; filename=\"iiot_desafio2_' + ts + '.csv\"'\n};\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 340,
+        "y": 420,
+        "wires": [
+            [
+                "5fa5ba396575adee"
+            ]
+        ]
+    },
+    {
+        "id": "5fa5ba396575adee",
+        "type": "http response",
+        "z": "30bc97d7ce2367b0",
+        "name": "Enviar CSV",
+        "statusCode": "",
+        "headers": {},
+        "x": 550,
+        "y": 420,
+        "wires": []
+    },
+    {
+        "id": "broker_iiot",
+        "type": "mqtt-broker",
+        "name": "Broker IIoT",
+        "broker": "10.110.12.65",
+        "port": "1883",
+        "clientid": "nodered_desafio2",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "ui_group_sensor",
+        "type": "ui_group",
+        "name": "Sensor DHT",
+        "tab": "ui_tab_sensor",
+        "order": 1,
+        "disp": true,
+        "width": "6",
+        "collapse": false
+    },
+    {
+        "id": "ui_group_csv",
+        "type": "ui_group",
+        "name": "Exportar Dados",
+        "tab": "ui_tab_sensor",
+        "order": 2,
+        "disp": true,
+        "width": "6",
+        "collapse": false
+    },
+    {
+        "id": "ui_tab_sensor",
+        "type": "ui_tab",
+        "name": "Monitor",
+        "icon": "dashboard",
+        "order": 1
+    },
+    {
+        "id": "deb15b8903c299b9",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-dashboard": "3.6.6"
+        }
+    }
+]
